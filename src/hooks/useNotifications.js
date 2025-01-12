@@ -18,7 +18,7 @@ export default function useNotifications() {
                         const { bin, bin_type, timestamp, percentage } = doc.data();
                         const fillLevelDataId = doc.id;
 
-                        if (percentage === 100) {
+                        if (percentage === 100 && isToday(new Date(timestamp.seconds * 1000))) {
                             const title = `${bin}(${bin_type}) is already full`;
 
                             const notificationQuery = query(collection(db, 'notifications'), where('fill_id', '==', fillLevelDataId));
@@ -27,7 +27,7 @@ export default function useNotifications() {
                             if (notificationSnapshot.empty) {
                                 await addDoc(collection(db, 'notifications'), {
                                     title,
-                                    timestamp: timestamp,
+                                    timestamp: new Date(),
                                     isRead: false,
                                     bin_id: bin,
                                     fill_id: fillLevelDataId,
@@ -48,11 +48,12 @@ export default function useNotifications() {
             try {
                 unsubscribeNotifications = onSnapshot(collection(db, 'notifications'), async (querySnapshot) => {
                     for (const doc of querySnapshot.docs) {
-                        const { title, isRead } = doc.data();
+                        const { title, timestamp, isRead } = doc.data();
 
-                        if (!isRead) {
+                        if (!isRead && isToday(new Date(timestamp.seconds * 1000))) {
                             await updateDoc(doc.ref, { isRead: true });
                             toast.error(title);
+                            await new Promise((resolve) => setTimeout(resolve, 30000));
                         }
                     }
                 });
@@ -73,3 +74,8 @@ export default function useNotifications() {
 
     return { loading, error };
 }
+
+const isToday = (date) => {
+    const today = new Date();
+    return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+};
